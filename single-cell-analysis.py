@@ -4,7 +4,6 @@ import sys
 import pandas as pd
 import numpy as np
 
-
 def concatenation_meme_echantillon(fichier_control,fichier_trait1,fichier_trait2):
     print("l'étape d'implementation de donnees traites et controles et la concatenation")
     adata_ctl = ad.read_h5ad(fichier_control)
@@ -29,7 +28,6 @@ def concatenation_entre_echantillon(echantillon1, echantillon2):
 
     return adadas_trait
 
-
 def un_seul_fichier_calcul(fichier_trait):
     adata_trait= ad.read_h5ad(fichier_trait)
     try:
@@ -44,6 +42,7 @@ def un_seul_fichier_calcul(fichier_trait):
     sc.tl.leiden(adata_trait)
     sc.tl.louvain(adata_trait)
     sc.tl.rank_genes_groups(adata_trait, "louvain", use_raw=True,method='t-test')
+
 
     test=input("est-ce que vous voulez visualiser les listes de gene avant l'annotation? (yes or no)")
     if test=="yes":
@@ -112,15 +111,28 @@ def sort_marker_gene(adata):
     print("sort table de barcode")
     barcode_tous=sc.get.obs_df(adata,keys=['louvain'])
     df_barcode=pd.DataFrame(barcode_tous)
-    Muscle_stem_myo=df_barcode.loc[(df_barcode['louvain']=="Myonuclei")|(df_barcode['louvain']=="Muscle stem cells")]
-    fibro=df_barcode.loc[df_barcode['louvain']=="Fibroblasts"]
+    Muscle_stem=df_barcode.loc[df_barcode['louvain']=="Muscle stem cells"]
+    fibro=df_barcode.loc[(df_barcode['louvain']=="Fibroblasts")|(df_barcode['louvain']=="'Tenocytes'")]
+    Immune=df_barcode.loc[df_barcode['louvain']=="Immune cells"]
+    endo=df_barcode.loc[df_barcode['louvain']=="Endothelial cells"]
+    Mural=df_barcode.loc[df_barcode['louvain']=="Mural cells"]
     a=input("est-ce que tu veux generer un nouveau fichier contenant tous les barcodes? (yes or no)")
     if a =="yes":
-        df_barcode.to_csv("barcode.csv")
-        Muscle_stem_myo.to_csv("barcode_Muscle_stem_myo.csv")
-        fibro.to_csv("barcode_fibro.csv")
+        df_barcode.to_csv(f"barcode_lignee{distingtion}.csv")
+
     else:
-        print("no fichier généré")
+        print("non fichier de barcodes contenant tous les informations générées")
+    b=input("est-ce que tu veux generer un nouveau fichier contenant tous les barcodes de differents subgroups? (yes or no)")
+
+    if b =="yes":
+        Muscle_stem.to_csv(f"barcode_MuSC_lignee{distingtion}.csv")
+        fibro.to_csv(f"barcode_C.T_lignee{distingtion}.csv")
+        Immune.to_csv(f"barcode_Immune_lignee{distingtion}.csv")
+        endo.to_csv(f"barcode_Endo_lignee{distingtion}.csv")
+        Mural.to_csv(f"barcode_Mural_lignee{distingtion}.csv")
+    else:
+        print("non fichier de barcodes contenant partiellement les informations générées")
+
 
 
 def trace_plot(adatas):
