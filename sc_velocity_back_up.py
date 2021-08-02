@@ -5,6 +5,10 @@ import sys,os
 import numpy as np
 import scrublet as scr
 from scipy import sparse
+import pandas as pd
+
+
+#sys.path.insert('/Users/xinyue/Draft-python/venv/lib/python3.7/site-packages/cellrank','/usr/local/Caskroom/miniconda/base/bin/python3.8/site-packages')
 
 def creation_newadata(load_adata,spliced_input,unspliced_input,ambiguous_input):
     print("la création de new anndata")
@@ -91,16 +95,6 @@ def data_preprocess(adata,result):
     adata.write_h5ad(filename=result)
     return adata
 
-'''def partiel_cluster(adata,barcode_filtered):
-    # Subset Cells based on STAR filtering
-    l=""
-    selected_barcodes = pd.read_csv(barcode_filtered, header = None)
-    for i in selected_barcodes[1:][0]:
-        sp=i.split("-")
-        l+=sp[0]+"\n"
-    df = pd.DataFrame([x.split(';') for x in l.split('\n')])
-    adata = adata[df]
-    print(adata)'''
 
 def calculate_scanpy(adata):
     sc.tl.pca(adata, svd_solver='arpack')
@@ -285,26 +279,27 @@ def scvelo_analyse(adata):
 def plot(adata):
     print("visaulaisation d'ARN vélocité")
 
-    scv.pl.velocity_embedding_grid(adata, basis='X_umap',color='louvain',xlim=[0,1],ylim=[0,1])
+    scv.pl.velocity_embedding_grid(adata, basis='X_umap',color='louvain')
 
-    scv.pl.velocity_embedding_stream(adata, basis='X_umap',color='louvain',xlim=[0,1],ylim=[0,1])
+    scv.pl.velocity_embedding_stream(adata, basis='X_umap',color='louvain')
 
     #scv.pl.velocity(adata, basis='X_umap',color='louvain')
-    scv.pl.velocity_graph(adata,basis='X_umap',color='louvain',xlim=[0,1],ylim=[0,1])
+    scv.pl.velocity_graph(adata,basis='X_umap',color='louvain')
 
     #scv.pl.paga(adata,basis='umap',color='velocity_clusters')
 
-    scv.pl.scatter(adata, color=['root_cells', 'end_points'],xlim=[0,1],ylim=[0,1])
+    scv.pl.scatter(adata, color=['root_cells', 'end_points'])
 
-    scv.pl.scatter(adata, color='velocity_pseudotime', color_map='gnuplot',xlim=[0,1],ylim=[0,1])
+    scv.pl.scatter(adata, color='velocity_pseudotime', color_map='gnuplot')
 
-    scv.pl.scatter(adata, color='louvain',xlim=[0,1],ylim=[0,1])
+    scv.pl.scatter(adata, color='louvain')
 
-    scv.pl.scatter(adata, color='velocity_confidence',xlim=[0,1],ylim=[0,1])
+    scv.pl.scatter(adata, color='velocity_confidence')
 
     #driver genes
     top_genes = adata.var['fit_likelihood'].sort_values(ascending=False).index[:300]
     scv.pl.heatmap(adata, var_names=top_genes, sortby='latent_time', col_color='louvain', n_convolve=100)
+
 
 def cellrank_analyse(adata):
     scv.tl.recover_dynamics(adata, n_jobs=8)
@@ -323,3 +318,61 @@ def cellrank_analyse(adata):
     cr.pl.lineages(adata, same_plot=True)
 
     scv.tl.recover_latent_time(adata, root_key="initial_states_probs", end_key="terminal_states_probs")
+
+
+
+if __name__ == '__main__':
+    if len(sys.argv)==6:
+        load_adata=sys.argv[1]
+        spliced_input=sys.argv[2]
+        unspliced_input=sys.argv[3]
+        ambiguous_input=sys.argv[4]
+        store=sys.argv[5]
+        result=creation_newadata(load_adata,spliced_input,unspliced_input,ambiguous_input)
+        adata=data_preprocess(result,store)
+
+    elif len(sys.argv)==2:
+        r=sys.argv[1]
+        result=scv.read(filename=r,cache=True)
+        print("c'est le dataset de départ")
+        print(result)
+        annot_dis=input("est-ce que vous voulez annoter les clusters pour les plots?(yes or no)")
+
+        if annot_dis=="yes":
+            velo=calculate_scanpy(result)
+            annot=annotation_cell_type(velo)
+            print(annot)
+            analysis=scvelo_analyse(annot)
+            plot(analysis)
+            #cellrank_analyse(annot)
+
+        elif annot_dis=="no":
+            methode=input("Quel objet de resultat que t'as initialment? Seurat? (yes or no)")
+            if methode=="yes":
+                analyse=scvelo_analyse(result)
+                plot(analyse)
+            elif methode=="no":
+                velo=calculate_scanpy(result)
+                cluster=cluster_analyse(velo)
+                #cellrank_analyse(cluster)
+                analysis=scvelo_analyse(cluster)
+                plot(analysis)
+
+        else:
+            raise ValueError("inserer les valeurs reconnus par la commande")
+
+    elif len(sys.argv)==3:
+        r=sys.argv[1]
+        barcodes=sys.argv[2]
+        result=scv.read(r, cache=True)
+        velo=calculate_scanpy(result)
+        print(velo)
+        print("print les barcodes qui sont associés avec cluster")
+        df = pd.DataFrame(velo.obs["louvain"])
+        print(df)
+        df.to_csv(os.path.join(barcodes))
+        print("Attention, il n'y a pas d'annotation cellulaire pour un seul echantillon")
+
+    else:
+        raise ImportError ("Inserer au moins d'un fichier ou votre fromat de fichier n'est pas correct.")
+
